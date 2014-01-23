@@ -7,6 +7,7 @@ except ImportError:
     import json
 
 import requests
+from requests.auth import HTTPBasicAuth
 
 from cube.expression import Sum, Min, Max, Median, Distinct
 from cube.event import Event
@@ -24,6 +25,11 @@ ONE_DAY = '864e5'
 
 class Cube(object):
     def __init__(self, hostname="localhost", **kwargs):
+        self._auth_user = kwargs.get('auth_user', None)
+        self._auth_secret = kwargs.get('auth_secret', None)
+        self.auth = HTTPBasicAuth(self._auth_user, self._auth_secret) \
+                    if self._auth_user and self._auth_secret \
+                    else None
         self.collector_url = 'http://{0}:{1}/{2}/'.format(hostname,
                                                           kwargs.get('collector_port', 1080),
                                                           API_VERSION)
@@ -46,7 +52,8 @@ class Cube(object):
 
         r = requests.post(self.collector_url + 'event/put',
                           data=data,
-                          headers={'content-type': 'application/json'})
+                          headers={'content-type': 'application/json'},
+                          auth=self.auth)
         r.raise_for_status()
 
         return [event]
@@ -67,7 +74,9 @@ class Cube(object):
                 except AttributeError:
                     pass
 
-        r = requests.get(self.evaluator_url + query_type, params=data)
+        r = requests.get(self.evaluator_url + query_type,
+                         params=data,
+                         auth=self.auth)
         r.raise_for_status()
 
         return r.json()
@@ -88,7 +97,8 @@ class Cube(object):
         """
         List of the known event types
         """
-        r = requests.get(self.evaluator_url + 'types')
+        r = requests.get(self.evaluator_url + 'types',
+                         auth=self.auth)
         r.raise_for_status()
         return r.json()
 
